@@ -1,0 +1,5 @@
+aapl 25
+msft 13
+xom 5
+fdn 55
+amzn 10
