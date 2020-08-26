@@ -1,5 +1,8 @@
 import Analyzer
 import tkinter as tk
+from datetime import datetime, time, date
+import time
+import threading
 
 
 #     Dealing with viewing the watchlist
@@ -199,4 +202,32 @@ submit.grid(row=2, column=0, pady=8, padx=2)
 sentimentLabel = tk.Label(get_stock_sentiment_frame, textvariable=sentiment)
 sentimentLabel.grid(row=2, column=1, pady=8, padx=2)
 
+
+
+#Dealing with the threaded process of checking significant changes in sentiment.
+#
+#
+#
+def check_sentiment(most_recent_sentiments):
+    ticker_sentiments = []
+    sentiment_file = open('latest_sentiment.txt', 'w')
+
+    for i in range(len(watchlist)):
+        ticker = watchlist[i]
+        sentiment = Analyzer.get_overall_sentiment(ticker)
+        ticker_sentiments.append(sentiment)
+
+        sig_change = 0.05
+        recent_sentiment = most_recent_sentiments[i]
+        sentiment_change = (sentiment-recent_sentiment)/recent_sentiment
+        if abs(sentiment_change) >= sig_change:
+            print(f'Sentiment for {ticker} has changed {sentiment_change}%')
+
+    write_str = '\n'.join(ticker_sentiments)
+    sentiment_file.write()
+    sentiment_file.close()
+
+    threading.Timer(5, lambda: check_sentiment(ticker_sentiments)).start()
+
+check_sentiment([0,0,0,0,0])
 root.mainloop()
