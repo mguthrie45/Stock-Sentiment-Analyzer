@@ -213,21 +213,34 @@ def check_sentiment(most_recent_sentiments):
     sentiment_file = open('latest_sentiment.txt', 'w')
 
     for i in range(len(watchlist)):
-        ticker = watchlist[i]
+        ticker = watchlist[i]['ticker']
         sentiment = Analyzer.get_overall_sentiment(ticker)
         ticker_sentiments.append(sentiment)
 
         sig_change = 0.05
         recent_sentiment = most_recent_sentiments[i]
-        sentiment_change = (sentiment-recent_sentiment)/recent_sentiment
-        if abs(sentiment_change) >= sig_change:
+        if recent_sentiment == 0:
+            if sentiment > 0:
+                sentiment_change = 'infinite'
+            elif sentiment == 0:
+                sentiment_change = 0
+            else:
+                sentiment_change = '-infinite'
+        else:
+            sentiment_change = (sentiment-recent_sentiment)/recent_sentiment
+        if type(sentiment_change) is float:
+            if abs(sentiment_change) >= sig_change:
+                print(f'Sentiment for {ticker} has changed {100*sentiment_change}%')
+        else:
             print(f'Sentiment for {ticker} has changed {sentiment_change}%')
 
-    write_str = '\n'.join(ticker_sentiments)
-    sentiment_file.write()
+    write_str = ''
+    for i in ticker_sentiments:
+        write_str += f'{i}\n'
+    sentiment_file.write(write_str)
     sentiment_file.close()
 
-    threading.Timer(5, lambda: check_sentiment(ticker_sentiments)).start()
+    threading.Timer(3600, lambda: check_sentiment(ticker_sentiments)).start()
 
 check_sentiment([0,0,0,0,0])
 root.mainloop()
