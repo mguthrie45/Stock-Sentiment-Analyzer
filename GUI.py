@@ -3,6 +3,7 @@ import tkinter as tk
 from datetime import datetime, time, date
 import time
 import threading
+import sys
 
 
 #     Dealing with viewing the watchlist
@@ -35,8 +36,9 @@ def open_watchlist_window():
         print(ticker)
 
     root2.mainloop()
+
 def get_watchlist():
-    watchlist_file = open('watchlist.txt', "r")
+    watchlist_file = open('watchlist.txt', 'r')
     ticker_lines = watchlist_file.read().split('\n')
     for i in range(len(ticker_lines)):
         ticker_lines[i] = ticker_lines[i].split(' ')
@@ -46,6 +48,7 @@ def get_watchlist():
         stock_dict = {'ticker': i[0], 'shares': i[1]}
         watchlist.append(stock_dict)
     return watchlist
+
 def get_watchlist_len():
     return len(watchlist)
 
@@ -209,16 +212,21 @@ sentimentLabel.grid(row=2, column=1, pady=8, padx=2)
 #
 #
 def check_sentiment(most_recent_sentiments):
-    ticker_sentiments = []
-    sentiment_file = open('latest_sentiment.txt', 'w')
+    new_sentiments = get_sentiment_changes(most_recent_sentiments)
+    update_sentiment_file(new_sentiments)
+    t = threading.Timer(10, lambda: check_sentiment(ticker_sentiments))
 
+def get_sentiment_changes(recent_sentiments_list):
+    ticker_sentiments = []
     for i in range(len(watchlist)):
         ticker = watchlist[i]['ticker']
-        sentiment = Analyzer.get_overall_sentiment(ticker)
+        sentiment = float(Analyzer.get_overall_sentiment(ticker))
+        sentiment = round(sentiment, 2)
         ticker_sentiments.append(sentiment)
 
         sig_change = 0.05
-        recent_sentiment = most_recent_sentiments[i]
+        recent_sentiment = recent_sentiments_list[i]
+        #print(sentiment, recent_sentiment)
         if recent_sentiment == 0:
             if sentiment > 0:
                 sentiment_change = 'infinite'
@@ -228,19 +236,41 @@ def check_sentiment(most_recent_sentiments):
                 sentiment_change = '-infinite'
         else:
             sentiment_change = (sentiment-recent_sentiment)/recent_sentiment
-        if type(sentiment_change) is float:
+        if type(sentiment_change) is float and abs(sentiment_change) != 0:
             if abs(sentiment_change) >= sig_change:
-                print(f'Sentiment for {ticker} has changed {100*sentiment_change}%')
-        else:
+                print(f'Sentiment for {ticker} has changed {round(100*sentiment_change)}%')
+        elif type(sentiment_change) is str:
             print(f'Sentiment for {ticker} has changed {sentiment_change}%')
+    return ticker_sentiments
 
+def update_sentiment_file(sentiments_list):
+    sentiment_file = open('latest_sentiment.txt', 'w')
     write_str = ''
-    for i in ticker_sentiments:
+    for i in sentiments_list:
         write_str += f'{i}\n'
     sentiment_file.write(write_str)
     sentiment_file.close()
 
-    threading.Timer(3600, lambda: check_sentiment(ticker_sentiments)).start()
+def parse_sentiment_file():
+    sentiment_file = open('latest_sentiment.txt', 'r')
+    sentiments = sentiment_file.read().split('\n')
+    sentiments = sentiments[:len(sentiments)-1]
+    sentiments_floats = []
+    for i in range(len(sentiments)):
+        sentiments_floats.append(round(float(sentiments[i]), 2))
+    sentiment_file.close()
+    return sentiments_floats
 
-check_sentiment([0,0,0,0,0])
+def kill_all_processes():
+    root.destroy()
+    sys.exit(0)
+
+def sentiment_check_on_startup():
+    print('Scraping web data and articles...')
+    print('Finding significant sentiment changes...')
+    initial_sentiments = parse_sentiment_file()
+    check_sentiment(initial_sentiments)
+
+sentiment_check_on_startup()
+root.protocol("WM_DELETE_WINDOW", kill_all_processes)
 root.mainloop()

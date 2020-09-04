@@ -4,7 +4,7 @@ import os
 
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
-new_words = {
+'''new_words = {
     'risky': -1.4,
     'high-risk': -1.5,
     'high risk': -1.5,
@@ -85,14 +85,14 @@ new_words = {
     'skyrocketing': 3.0,
     'skyrockets': 3.0,
     'skyrocketed': 3.0
-}
+}'''
 
 #magnifying the effects of positive or negative language specific to financial news.
-for i in new_words:
-    new_words[i] *= 3.5
+'''for i in new_words:
+    new_words[i] *= 3.5'''
 
 analyzer = SentimentIntensityAnalyzer()
-analyzer.lexicon.update(new_words)
+#analyzer.lexicon.update(new_words)
 
 sentiment_val_list = []
 
