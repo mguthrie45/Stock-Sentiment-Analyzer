@@ -1,9 +1,19 @@
+
+# TODO: allow buttons to have distinguishable button commands.
+
+
+
+
+
 import Analyzer
 import tkinter as tk
-from datetime import datetime, time, date
+import datetime
 import time
 import threading
 import sys
+from YahooDataScraping import plot_data
+
+import mail_notifications
 
 
 #     Dealing with viewing the watchlist
@@ -21,6 +31,7 @@ def open_watchlist_window():
     main_frame = tk.Frame(root2, padx=20, pady=20)
     main_frame.pack()
 
+
     for i in range(m):
         m_label = tk.Label(main_frame, text=str(i + 1))
         ticker = watchlist[i]['ticker']
@@ -31,11 +42,18 @@ def open_watchlist_window():
         ticker_label.grid(row=i, column=1, padx=10, pady=2)
         shares_label.grid(row=i, column=2, padx=10, pady=2)
         price_label.grid(row=i, column=3, padx=10, pady=2)
-        analysis_button = tk.Button(main_frame, text='analysis', command=lambda: open_stock_analysis_window(ticker))
+
+        end = datetime.datetime.now()
+        td = datetime.timedelta(days = 180)
+        start = end - td
+
+        button_press = lambda ticker=ticker: plot_data(ticker, start, end)
+        analysis_button = tk.Button(main_frame, text='analysis', command=button_press)
         analysis_button.grid(row=i, column=4, padx=10, pady=2)
         print(ticker)
 
     root2.mainloop()
+
 
 def get_watchlist():
     watchlist_file = open('watchlist.txt', 'r')
@@ -44,10 +62,11 @@ def get_watchlist():
         ticker_lines[i] = ticker_lines[i].split(' ')
     watchlist_file.close()
     watchlist = []
-    for i in ticker_lines[:len(ticker_lines)-1]:
+    for i in ticker_lines[:len(ticker_lines ) -1]:
         stock_dict = {'ticker': i[0], 'shares': i[1]}
         watchlist.append(stock_dict)
     return watchlist
+
 
 def get_watchlist_len():
     return len(watchlist)
@@ -96,6 +115,8 @@ def open_new_ticker_window():
     add_button.pack(pady=10)
 
     root2.mainloop()
+
+
 def add_ticker(ticker, shares):
     if ticker in watchlist:
         tk.messagebox.showerror('Add Error', 'Ticker ticker you entered is already in your watchlist.')
@@ -104,6 +125,8 @@ def add_ticker(ticker, shares):
     watchlist_file.write(f'{ticker} {shares}\n')
     watchlist.append(ticker)
     watchlist_file.close()
+
+
 def remove_ticker(ticker):
     if ticker not in watchlist:
         tk.messagebox.showerror('Removal Error', 'The ticker you entered could not be found in your watchlist.')
@@ -122,15 +145,17 @@ def get_sentiment_list():
     file.close()
     '''for i in range(len(sentiments)):
         sentiments[i] = float(sentiments[i])'''
-    return sentiments[:len(sentiments)-1]
+    return sentiments[:len(sentiments ) -1]
+
 
 def update_sentiments_memory(sentiments):
     file = open('latest\\latest_sentiment.txt', 'w')
     string = ''
     for i in sentiments:
-        string += str(i)+'\n'
+        string += str(i ) +'\n'
     file.write(string)
     file.close()
+
 
 def update_sentiments():
     global ticker_sentiments
@@ -195,7 +220,8 @@ def get_sentiment():
 
     sentiment_conversion_list = ["Very Poor", "Poor", "Neutral", "Good", "Very Good"]
     n = len(sentiment_conversion_list)
-    sentiment.set(f'{round(result, 2)}  {sentiment_conversion_list[int((result/2+0.5)//.2)]}') #converts range from -1 to 1 to 0 to 1.
+    sentiment.set \
+        (f'{round(result, 2)}  {sentiment_conversion_list[int((result / 2 +0.5 )//.2)]}')  # converts range from -1 to 1 to 0 to 1.
 
 
 sentiment = tk.StringVar()
@@ -206,17 +232,26 @@ sentimentLabel = tk.Label(get_stock_sentiment_frame, textvariable=sentiment)
 sentimentLabel.grid(row=2, column=1, pady=8, padx=2)
 
 
-
-#Dealing with the threaded process of checking significant changes in sentiment.
+# Dealing with the threaded process of checking significant changes in sentiment.
 #
 #
 #
 def check_sentiment(most_recent_sentiments):
-    new_sentiments = get_sentiment_changes(most_recent_sentiments)
+    sentiment_change_dict = get_sentiment_changes(most_recent_sentiments)
+    new_sentiments = sentiment_change_dict['sentiments']
+    notification = sentiment_change_dict['notification']
     update_sentiment_file(new_sentiments)
+
+    '''mail_notifications.send_mail_SMTP(notification,
+                                      "mguthrie4511@gmail.com",
+                                      "ThorAlan1",
+                                      "mguthrie451@gmail.com")'''
+
     t = threading.Timer(10, lambda: check_sentiment(ticker_sentiments))
 
+
 def get_sentiment_changes(recent_sentiments_list):
+    notification_string = ''
     ticker_sentiments = []
     for i in range(len(watchlist)):
         ticker = watchlist[i]['ticker']
@@ -226,7 +261,7 @@ def get_sentiment_changes(recent_sentiments_list):
 
         sig_change = 0.05
         recent_sentiment = recent_sentiments_list[i]
-        #print(sentiment, recent_sentiment)
+        # print(sentiment, recent_sentiment)
         if recent_sentiment == 0:
             if sentiment > 0:
                 sentiment_change = 'infinite'
@@ -235,13 +270,22 @@ def get_sentiment_changes(recent_sentiments_list):
             else:
                 sentiment_change = '-infinite'
         else:
-            sentiment_change = (sentiment-recent_sentiment)/recent_sentiment
+            sentiment_change = (sentiment -recent_sentiment ) /recent_sentiment
         if type(sentiment_change) is float and abs(sentiment_change) != 0:
             if abs(sentiment_change) >= sig_change:
-                print(f'Sentiment for {ticker} has changed {round(100*sentiment_change)}%')
+                notification = f'Sentiment for {ticker} has changed {round(100*sentiment_change)}%'
+                notification_string += notification
+                print(notification)
         elif type(sentiment_change) is str:
-            print(f'Sentiment for {ticker} has changed {sentiment_change}%')
-    return ticker_sentiments
+            notification = f'Sentiment for {ticker} has changed {sentiment_change}%'
+            notification_string += notification
+            print(notification)
+
+    if notification_string == '':
+        notification_string = "Your watchlist's stocks haven't changed in sentiment recently..."
+
+    return {'sentiments': ticker_sentiments, 'notification': notification_string}
+
 
 def update_sentiment_file(sentiments_list):
     sentiment_file = open('latest_sentiment.txt', 'w')
@@ -251,25 +295,29 @@ def update_sentiment_file(sentiments_list):
     sentiment_file.write(write_str)
     sentiment_file.close()
 
+
 def parse_sentiment_file():
     sentiment_file = open('latest_sentiment.txt', 'r')
     sentiments = sentiment_file.read().split('\n')
-    sentiments = sentiments[:len(sentiments)-1]
+    sentiments = sentiments[:len(sentiments ) -1]
     sentiments_floats = []
     for i in range(len(sentiments)):
         sentiments_floats.append(round(float(sentiments[i]), 2))
     sentiment_file.close()
     return sentiments_floats
 
+
 def kill_all_processes():
     root.destroy()
     sys.exit(0)
+
 
 def sentiment_check_on_startup():
     print('Scraping web data and articles...')
     print('Finding significant sentiment changes...')
     initial_sentiments = parse_sentiment_file()
     check_sentiment(initial_sentiments)
+
 
 sentiment_check_on_startup()
 root.protocol("WM_DELETE_WINDOW", kill_all_processes)
