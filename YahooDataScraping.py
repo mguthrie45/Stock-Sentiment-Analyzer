@@ -51,7 +51,8 @@ def plot_data(ticker, start, end):
 
     plt.title(ticker.upper())
     plt.plot(x, y)
-    plt.plot(ma_x_50, ma_y_50)
-    plt.plot(ma_x_15, ma_y_15)
+    plt.plot(ma_x_50, ma_y_50, label="50-day Moving Average")
+    plt.plot(ma_x_15, ma_y_15, label="15-day Moving Average")
+    plt.legend()
     plt.show()
 
