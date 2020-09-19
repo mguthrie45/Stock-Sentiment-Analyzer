@@ -1,5 +1,5 @@
 
-# TODO: allow buttons to have distinguishable button commands.
+# TODO: make analysis checkbuttons
 
 
 
@@ -47,7 +47,7 @@ def open_watchlist_window():
         td = datetime.timedelta(days = 180)
         start = end - td
 
-        button_press = lambda ticker=ticker: plot_data(ticker, start, end)
+        button_press = lambda ticker=ticker: open_stock_analysis_window(ticker)#plot_data(ticker, start, end)
         analysis_button = tk.Button(main_frame, text='analysis', command=button_press)
         analysis_button.grid(row=i, column=4, padx=10, pady=2)
         print(ticker)
@@ -80,11 +80,32 @@ def get_watchlist_len():
 #
 def open_stock_analysis_window(ticker):
     root2 = tk.Tk()
-    root2.geometry("600x600")
+    #root2.geometry("600x600")
     root2.title(ticker)
 
-    main_frame = tk.LabelFrame(root2, text=ticker, font=header_font, padx=20, pady=20)
+    main_frame = tk.LabelFrame(root2, text=ticker.upper(), font=header_font, padx=20, pady=20)
     main_frame.pack()
+
+    variable_frame = tk.Frame(main_frame, padx=10, pady=10)
+    variable_frame.grid(row=0, column=0)
+
+    ma15True = tk.IntVar()
+    ma15Check = tk.Checkbutton(variable_frame, text="15 Day MA", variable=ma15True, onvalue=1, offvalue=0)
+    ma15Check.pack()
+    ma50True = tk.IntVar()
+    ma50Check = tk.Checkbutton(variable_frame, text="50 Day MA", variable=ma50True, onvalue=1, offvalue=0)
+    ma50Check.pack()
+
+    execution_frame = tk.Frame(main_frame, padx=10, pady=10)
+    execution_frame.grid(row=0, column=1)
+
+    end = datetime.datetime.now()
+    td = datetime.timedelta(days=180)
+    start = end - td
+
+    plot_command = lambda: print(ma15True.get())#ticker=ticker: plot_data(ticker, start, end)
+    plot_button = tk.Button(execution_frame, text='plot', command=plot_command)
+    plot_button.pack()
 
     root2.mainloop()
 
@@ -205,7 +226,7 @@ exchange_var = tk.StringVar()
 enterExchange = tk.Label(get_stock_sentiment_frame, text="exchange")
 enterExchange.grid(row=1, column=0, pady=2, padx=2)
 exchangeButton = tk.Entry(get_stock_sentiment_frame, textvariable=exchange_var)
-exchangeButton.grid(row=1, column=1, pady=2, padx=2)
+exchangeButton.grid(row=1, column=0, pady=2, padx=2)
 
 open_watchlist_button = tk.Button(watchlist_tool_frame, text="My Watchlist", command=open_watchlist_window)
 open_watchlist_button.pack(pady=10)
@@ -213,6 +234,19 @@ open_watchlist_button.pack(pady=10)
 ticker_input_var = tk.StringVar()
 new_ticker = tk.Button(watchlist_tool_frame, text="add stock", command=open_new_ticker_window)
 new_ticker.pack(pady=10)
+
+notification_frame = tk.LabelFrame(root, text='Recent Sentiment Activity', font=header_font, padx=20, pady=20)
+notification_frame.grid(row=2, column=0, pady=10, padx=10)
+notification_string_tk = tk.StringVar()
+notification_label = tk.Label(notification_frame, textvariable=notification_string_tk)
+notification_label.pack()
+
+def write_notifications(notification_dictionary):
+    notification_string = ''
+    if len(notification_dictionary['notifications']) != 0:
+        for i in notification_dictionary['notifications']:
+            notification_string += f'{i} \n'
+        notification_string_tk.set(notification_string)
 
 
 def get_sentiment():
@@ -239,20 +273,22 @@ sentimentLabel.grid(row=2, column=1, pady=8, padx=2)
 def check_sentiment(most_recent_sentiments):
     sentiment_change_dict = get_sentiment_changes(most_recent_sentiments)
     new_sentiments = sentiment_change_dict['sentiments']
-    notification = sentiment_change_dict['notification']
+    notifications_list = sentiment_change_dict['notifications']
     update_sentiment_file(new_sentiments)
+    write_notifications(sentiment_change_dict)
 
     '''mail_notifications.send_mail_SMTP(notification,
-                                      "mguthrie4511@gmail.com",
-                                      "ThorAlan1",
-                                      "mguthrie451@gmail.com")'''
+                                      "*",
+                                      "*",
+                                      "*")'''
 
-    t = threading.Timer(10, lambda: check_sentiment(ticker_sentiments))
+    t = threading.Timer(3600, lambda: check_sentiment(new_sentiments))#.start()
 
 
 def get_sentiment_changes(recent_sentiments_list):
     notification_string = ''
     ticker_sentiments = []
+    notifications = []
     for i in range(len(watchlist)):
         ticker = watchlist[i]['ticker']
         sentiment = float(Analyzer.get_overall_sentiment(ticker))
@@ -261,7 +297,6 @@ def get_sentiment_changes(recent_sentiments_list):
 
         sig_change = 0.05
         recent_sentiment = recent_sentiments_list[i]
-        # print(sentiment, recent_sentiment)
         if recent_sentiment == 0:
             if sentiment > 0:
                 sentiment_change = 'infinite'
@@ -270,21 +305,24 @@ def get_sentiment_changes(recent_sentiments_list):
             else:
                 sentiment_change = '-infinite'
         else:
-            sentiment_change = (sentiment -recent_sentiment ) /recent_sentiment
+            sentiment_change = (sentiment-recent_sentiment)/recent_sentiment
         if type(sentiment_change) is float and abs(sentiment_change) != 0:
             if abs(sentiment_change) >= sig_change:
                 notification = f'Sentiment for {ticker} has changed {round(100*sentiment_change)}%'
+                notifications.append(notification)
                 notification_string += notification
                 print(notification)
         elif type(sentiment_change) is str:
             notification = f'Sentiment for {ticker} has changed {sentiment_change}%'
+            notifications.append(notification)
             notification_string += notification
             print(notification)
 
     if notification_string == '':
         notification_string = "Your watchlist's stocks haven't changed in sentiment recently..."
 
-    return {'sentiments': ticker_sentiments, 'notification': notification_string}
+    print({'sentiments': ticker_sentiments, 'notifications': notifications})
+    return {'sentiments': ticker_sentiments, 'notifications': notifications}
 
 
 def update_sentiment_file(sentiments_list):
@@ -299,15 +337,18 @@ def update_sentiment_file(sentiments_list):
 def parse_sentiment_file():
     sentiment_file = open('latest_sentiment.txt', 'r')
     sentiments = sentiment_file.read().split('\n')
-    sentiments = sentiments[:len(sentiments ) -1]
+    sentiments = sentiments[:len(sentiments)-1]
     sentiments_floats = []
     for i in range(len(sentiments)):
         sentiments_floats.append(round(float(sentiments[i]), 2))
     sentiment_file.close()
+    if len(sentiments_floats) == 0:
+        sentiments_floats = [0.0]*len(watchlist)
     return sentiments_floats
 
 
 def kill_all_processes():
+
     root.destroy()
     sys.exit(0)
 
