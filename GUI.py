@@ -1,5 +1,10 @@
 
-# TODO: make analysis checkbuttons
+#TODO: make analysis checkbuttons work
+#TODO: Don't make program find sentiment every time it opens up but maintain the every hour rule.
+#TODO: get sentiment and stock price vs time graphs
+#TODO: Possibly add memory system for daily sentiment prices of each watchlist stock.
+#TODO: Make watchlist analysis: "overall watchlist sentiment", cumulative watchlist graphing abilities
+#TODO: for watchlist analysis: keep track of when ticker was added and find loss-gain. Have it graphed too since it was on watchlist.
 
 
 
@@ -80,7 +85,6 @@ def get_watchlist_len():
 #
 def open_stock_analysis_window(ticker):
     root2 = tk.Tk()
-    #root2.geometry("600x600")
     root2.title(ticker)
 
     main_frame = tk.LabelFrame(root2, text=ticker.upper(), font=header_font, padx=20, pady=20)
@@ -89,12 +93,20 @@ def open_stock_analysis_window(ticker):
     variable_frame = tk.Frame(main_frame, padx=10, pady=10)
     variable_frame.grid(row=0, column=0)
 
-    ma15True = tk.IntVar()
-    ma15Check = tk.Checkbutton(variable_frame, text="15 Day MA", variable=ma15True, onvalue=1, offvalue=0)
+    check_button_dict = {'ma15': 0, 'ma50': 0, 'sentiment': 0}
+
+    def change_check_values(variable):
+        if check_button_dict[variable] == 0:
+            check_button_dict[variable] = 1
+        else:
+            check_button_dict[variable] = 0
+
+    ma15Check = tk.Checkbutton(variable_frame, text="15 Day MA", command=lambda: change_check_values('ma15'))
     ma15Check.pack()
-    ma50True = tk.IntVar()
-    ma50Check = tk.Checkbutton(variable_frame, text="50 Day MA", variable=ma50True, onvalue=1, offvalue=0)
+    ma50Check = tk.Checkbutton(variable_frame, text="50 Day MA", command=lambda: change_check_values('ma50'))
     ma50Check.pack()
+    sentiment = tk.Checkbutton(variable_frame, text="Sentiment History", command=lambda: change_check_values('sentiment'))
+    sentiment.pack()
 
     execution_frame = tk.Frame(main_frame, padx=10, pady=10)
     execution_frame.grid(row=0, column=1)
@@ -103,8 +115,13 @@ def open_stock_analysis_window(ticker):
     td = datetime.timedelta(days=180)
     start = end - td
 
-    plot_command = lambda: print(ma15True.get())#ticker=ticker: plot_data(ticker, start, end)
-    plot_button = tk.Button(execution_frame, text='plot', command=plot_command)
+    def plot_according_to_variables():
+        ma15 = check_button_dict['ma15']
+        ma50 = check_button_dict['ma50']
+        sentiment = check_button_dict['sentiment']
+        plot_data(ticker, start, end, ma15, ma50)
+
+    plot_button = tk.Button(execution_frame, text='plot', command=plot_according_to_variables)
     plot_button.pack()
 
     root2.mainloop()
@@ -221,12 +238,6 @@ enterTicker = tk.Label(get_stock_sentiment_frame, text="ticker")
 enterTicker.grid(row=0, column=0, pady=2)
 tickerButton = tk.Entry(get_stock_sentiment_frame, textvariable=ticker_var)
 tickerButton.grid(row=0, column=1, pady=2, padx=2)
-
-exchange_var = tk.StringVar()
-enterExchange = tk.Label(get_stock_sentiment_frame, text="exchange")
-enterExchange.grid(row=1, column=0, pady=2, padx=2)
-exchangeButton = tk.Entry(get_stock_sentiment_frame, textvariable=exchange_var)
-exchangeButton.grid(row=1, column=0, pady=2, padx=2)
 
 open_watchlist_button = tk.Button(watchlist_tool_frame, text="My Watchlist", command=open_watchlist_window)
 open_watchlist_button.pack(pady=10)

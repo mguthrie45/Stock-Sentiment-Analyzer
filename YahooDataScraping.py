@@ -36,23 +36,26 @@ def get_moving_average(ticker, start_datetime, end_datetime, n=50):
     return ma_df
 
 
-def plot_data(ticker, start, end):
+def plot_data(ticker, start, end, ma15, ma50):
     prices = get_close_price_history(ticker, start, end)
     x = list(prices['date'])
     y = list(prices['price'])
 
-    ma_prices_50 = get_moving_average(ticker, start, end)
-    ma_x_50 = list(ma_prices_50['date'])
-    ma_y_50 = list(ma_prices_50['MA_price'])
-
-    ma_prices_15 = get_moving_average(ticker, start, end, 15)
-    ma_x_15 = list(ma_prices_15['date'])
-    ma_y_15 = list(ma_prices_15['MA_price'])
-
     plt.title(ticker.upper())
     plt.plot(x, y)
-    plt.plot(ma_x_50, ma_y_50, label="50-day Moving Average")
-    plt.plot(ma_x_15, ma_y_15, label="15-day Moving Average")
+
+    if ma15:
+        ma_prices_15 = get_moving_average(ticker, start, end, 15)
+        ma_x_15 = list(ma_prices_15['date'])
+        ma_y_15 = list(ma_prices_15['MA_price'])
+        plt.plot(ma_x_15, ma_y_15, label="15-day Moving Average")
+    if ma50:
+        ma_prices_50 = get_moving_average(ticker, start, end)
+        ma_x_50 = list(ma_prices_50['date'])
+        ma_y_50 = list(ma_prices_50['MA_price'])
+        plt.plot(ma_x_50, ma_y_50, label="50-day Moving Average")
+
+
     plt.legend()
     plt.show()
 
