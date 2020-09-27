@@ -1,5 +1,5 @@
-aapl 25
-msft 13
-xom 5
-fdn 55
-amzn 10
+aapl 5 112.28
+amzn 2 3095.13
+cgc 10 14.17
+msft 5 207.82
+tsla 5 407.34

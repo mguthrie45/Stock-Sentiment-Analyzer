@@ -30,6 +30,8 @@ def open_watchlist_window():
     root2.geometry("500x500")
     root2.title("My Watchlist")
 
+    watchlist = get_watchlist()
+
     m = len(watchlist)
     n = 3
 
@@ -38,25 +40,36 @@ def open_watchlist_window():
 
     tk.Label(main_frame, text="Ticker").grid(row=0, column=1, padx=10, pady=2)
     tk.Label(main_frame, text="Shares").grid(row=0, column=2, padx=10, pady=2)
-    tk.Label(main_frame, text="Price").grid(row=0, column=3, padx=10, pady=2)
+    tk.Label(main_frame, text="Buy Price").grid(row=0, column=3, padx=10, pady=2)
+    tk.Label(main_frame, text="Price").grid(row=0, column=4, padx=10, pady=2)
+    tk.Label(main_frame, text="Gain/Loss").grid(row=0, column=5, padx=10, pady=2)
     for i in range(m):
         m_label = tk.Label(main_frame, text=str(i + 1))
-        ticker = watchlist[i]['ticker']
+        ticker = watchlist[i]['ticker'].upper()
+        price = get_price(ticker)
+        buy_price = watchlist[i]['buy_price']
+
+        gain_loss = round(((price-buy_price)/buy_price)*100, 1)
+
         ticker_label = tk.Label(main_frame, text=ticker)
         shares_label = tk.Label(main_frame, text=watchlist[i]['shares'])
-        price_label = tk.Label(main_frame, text=f'${get_price(ticker)}')
+        buy_price_label = tk.Label(main_frame, text=f'${buy_price}')
+        price_label = tk.Label(main_frame, text=f'${price}')
+        gain_loss_label = tk.Label(main_frame, text=f'{gain_loss}%')
         m_label.grid(row=i+1, column=0, padx=10, pady=2)
         ticker_label.grid(row=i+1, column=1, padx=10, pady=2)
         shares_label.grid(row=i+1, column=2, padx=10, pady=2)
-        price_label.grid(row=i+1, column=3, padx=10, pady=2)
+        buy_price_label.grid(row=i+1, column=3, padx=10, pady=2)
+        price_label.grid(row=i+1, column=4, padx=10, pady=2)
+        gain_loss_label.grid(row=i+1, column=5, padx=10, pady=2)
 
         end = datetime.datetime.now()
-        td = datetime.timedelta(days = 180)
+        td = datetime.timedelta(days=180)
         start = end - td
 
         button_press = lambda ticker=ticker: open_stock_analysis_window(ticker)#plot_data(ticker, start, end)
         analysis_button = tk.Button(main_frame, text='analysis', command=button_press)
-        analysis_button.grid(row=i+1, column=4, padx=10, pady=2)
+        analysis_button.grid(row=i+1, column=6, padx=10, pady=2)
         print(ticker)
 
     root2.mainloop()
@@ -70,7 +83,7 @@ def get_watchlist():
     watchlist_file.close()
     watchlist = []
     for i in ticker_lines[:len(ticker_lines)-1]:
-        stock_dict = {'ticker': i[0], 'shares': int(i[1])}
+        stock_dict = {'ticker': i[0], 'shares': int(i[1]), 'buy_price': float(i[2])}
         watchlist.append(stock_dict)
     print(watchlist)
     return watchlist
@@ -191,8 +204,10 @@ def add_ticker(ticker, shares):
     if ticker in watchlist:
         tk.messagebox.showerror('Add Error', 'Ticker ticker you entered is already in your watchlist.')
         return None
+
+    price = get_price(ticker)
     watchlist_file = open('watchlist.txt', 'a')
-    watchlist_file.write(f'{ticker} {shares}\n')
+    watchlist_file.write(f'{ticker} {shares} {price}\n')
     watchlist.append(ticker)
     watchlist_file.close()
 
@@ -329,7 +344,10 @@ def check_sentiment(most_recent_sentiments):
     print(weighted_sentiments)
     sentiment_conversion_list = ["Very Poor", "Poor", "Neutral", "Good", "Very Good"]
     n = len(sentiment_conversion_list)
-    cumulative_watchlist_sentiment = round(sum(weighted_sentiments) / sum(total_shares), 2)
+    if len(watchlist) > 0:
+        cumulative_watchlist_sentiment = round(sum(weighted_sentiments) / sum(total_shares), 2)
+    else:
+        cumulative_watchlist_sentiment = 0
     print(cumulative_watchlist_sentiment)
     watchlist_sent_var.set(f'Cumulative Watchlist Sentiment: {cumulative_watchlist_sentiment}  {sentiment_conversion_list[int((cumulative_watchlist_sentiment / 2 + 0.5) // .2)]}')
 
@@ -356,6 +374,7 @@ def get_sentiment_changes(recent_sentiments_list):
         ticker_sentiments.append(sentiment)
 
         sig_change = 0.05
+
         recent_sentiment = recent_sentiments_list[i]
         if recent_sentiment == 0:
             if sentiment > 0:
@@ -404,6 +423,9 @@ def parse_sentiment_file():
     sentiment_file.close()
     if len(sentiments_floats) == 0:
         sentiments_floats = [0.0]*len(watchlist)
+    if len(watchlist) > len(sentiments_floats):
+        tickers_needing_update = len(watchlist)-len(sentiments_floats)
+        sentiments_floats += [0.0]*tickers_needing_update
     return sentiments_floats
 
 
