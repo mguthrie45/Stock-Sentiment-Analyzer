@@ -20,7 +20,7 @@ def get_close_price_history(ticker, start_datetime, end_datetime):
 
 def get_price(ticker):
     now = datetime.datetime.now()
-    day_before = now - datetime.timedelta(days=1)
+    day_before = now - datetime.timedelta(days=3)
     data = get_close_price_history(ticker, day_before, now)
     return round(data.iloc[0]['price'], 2)
 
